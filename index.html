@@ -1,567 +1,651 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Depth-Limited Search Visualizer - Ghana Routes</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono&display=swap');
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ghana Route-Finding Visualizer</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono&display=swap');
 
-        :root {
-            --bg-color: #f8fafc;
-            --panel-bg: rgba(255, 255, 255, 0.82);
-            --panel-border: rgba(15, 23, 42, 0.08);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --accent-blue: #74ade8;
-            --accent-red: #ef4444;
-            --accent-green: #10b981;
-            --accent-gold: #b45309;
-            --font-stack: "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            --font-mono: "Space Mono", monospace;
-        }
+            :root {
+                --bg-color: #f8fafc;
+                --panel-bg: rgba(255, 255, 255, 0.82);
+                --panel-border: rgba(15, 23, 42, 0.08);
+                --text-main: #0f172a;
+                --text-muted: #64748b;
+                --accent-gold: #b45309;
+                --accent-indigo: #74ade8;
+                --node-unvisited: #e2e8f0;
+                --node-frontier: #3b82f6;
+                --node-explored: #d97706;
+                --node-path: #e11d48;
+                --font-stack: "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
+                --font-mono: "Space Mono", monospace;
+            }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: var(--font-stack);
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        #sidebar {
-            width: 350px;
-            background-color: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-right: 1px solid var(--panel-border);
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            overflow-y: auto;
-        }
-
-        .header-panel {
-            padding: 0 0 15px 0;
-            border-bottom: 1px solid var(--panel-border);
-        }
-
-        h1 { 
-            font-size: 1.25rem; 
-            font-weight: 700;
-            text-transform: uppercase; 
-            letter-spacing: 0.12em; 
-            color: #1e1b4b;
-            margin-bottom: 5px;
-        }
-        
-        p.subtitle { 
-            font-size: 0.8rem; 
-            color: var(--text-muted); 
-            line-height: 1.4; 
-        }
-
-        .settings-panel {
-            padding: 15px 0;
-            border-bottom: 1px solid var(--panel-border);
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .setting-row { display: flex; flex-direction: column; gap: 5px; }
-        
-        label { 
-            font-size: 0.72rem; 
-            font-weight: 600;
-            text-transform: uppercase; 
-            letter-spacing: 0.08em; 
-            color: var(--text-muted); 
-        }
-
-        select, button {
-            background-color: #ffffff;
-            color: var(--text-main);
-            border: 1px solid rgba(15, 23, 42, 0.12);
-            padding: 10px 14px;
-            font-family: var(--font-stack);
-            font-size: 0.88rem;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            outline: none;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-        }
-
-        select {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(15,23,42,0.5)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 14px;
-            padding-right: 36px;
-        }
-
-        select:focus, button:hover { 
-            border-color: rgba(116, 173, 232, 0.5); 
-            background-color: #f8fafc;
-            box-shadow: 0 0 0 3px rgba(116, 173, 232, 0.15);
-        }
-
-        .controls {
-            padding: 15px 0;
-            border-bottom: 1px solid var(--panel-border);
-            display: flex;
-            gap: 10px;
-        }
-
-        button {
-            flex: 1;
-            background-color: #ffffff;
-            border: 1px solid rgba(15, 23, 42, 0.12);
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            font-size: 0.8rem;
-        }
-
-        button:hover {
-            background-color: rgba(116, 173, 232, 0.05);
-            border-color: var(--accent-blue);
-        }
-        button:active {
-            transform: scale(0.97);
-        }
-
-        #btn-play {
-            background-color: rgba(116, 173, 232, 0.08);
-            border-color: rgba(116, 173, 232, 0.18);
-            color: #356ea8;
-        }
-        #btn-play:hover {
-            background-color: var(--accent-blue);
-            color: #ffffff;
-            border-color: var(--accent-blue);
-        }
-
-        #log-container {
-            flex-grow: 1;
-            padding: 15px 0;
-            overflow-y: auto;
-            font-family: var(--font-mono);
-            font-size: 0.78rem;
-            line-height: 1.5;
-            color: #334155;
-        }
-
-        .log-entry { margin-bottom: 12px; line-height: 1.4; border-bottom: 1px solid rgba(15, 23, 42, 0.06); padding-bottom: 10px;}
-        
-        .log-cutoff { color: var(--accent-red); font-weight: 600; }
-        .log-fail { color: var(--accent-gold); font-weight: 600; }
-        
-        .log-success { 
-            color: var(--accent-green); 
-            border: 1px solid var(--accent-green); 
-            padding: 12px; 
-            background: rgba(16, 185, 129, 0.06); 
-            border-radius: 8px;
-        }
-        
-        .data-highlight { color: #0f172a; font-weight: bold; }
-
-        #canvas-container {
-            flex-grow: 1;
-            position: relative;
-            background-color: var(--bg-color);
-        }
-
-        canvas { display: block; width: 100%; height: 100%; }
-
-        #legend {
-            position: absolute;
-            top: 24px;
-            right: 24px;
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--panel-border);
-            padding: 16px;
-            font-size: 0.75rem;
-            border-radius: 10px;
-            box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
-        }
-
-        .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-        .color-box { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(15, 23, 42, 0.08); }
-
-        @media (max-width: 850px) {
             body {
-                flex-direction: column-reverse;
-                overflow: hidden;
+                background-color: var(--bg-color);
+                color: var(--text-main);
+                font-family: var(--font-stack);
+                display: flex;
                 height: 100vh;
+                overflow: hidden;
             }
 
             #sidebar {
-                width: 100%;
-                height: 52vh;
-                max-height: 52vh;
-                border-right: none;
-                border-top: 1px solid var(--panel-border);
-                padding: 16px;
-                gap: 12px;
+                width: 350px;
+                background-color: var(--panel-bg);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border-right: 1px solid var(--panel-border);
+                padding: 24px;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                overflow-y: auto;
             }
 
-            .header-panel {
-                padding: 5px 0;
+            h1 {
+                font-size: 1.25rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                color: #1e1b4b;
             }
 
-            .settings-panel {
-                padding: 5px 0;
+            .control-group { display: flex; flex-direction: column; gap: 8px; }
+
+            .control-row-grid {
+                display: flex;
+                gap: 15px;
+            }
+            .control-row-grid .control-group {
+                flex: 1;
             }
 
-            .controls {
-                padding: 5px 0;
+            label {
+                font-size: 0.72rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: var(--text-muted);
             }
+
+            select, button {
+                background-color: #ffffff;
+                color: var(--text-main);
+                border: 1px solid rgba(15, 23, 42, 0.12);
+                padding: 10px 14px;
+                font-family: var(--font-stack);
+                font-size: 0.88rem;
+                cursor: pointer;
+                border-radius: 8px;
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                outline: none;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            }
+
+            select {
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(15,23,42,0.5)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 12px center;
+                background-size: 14px;
+                padding-right: 36px;
+            }
+
+            select:focus, button:hover {
+                border-color: rgba(79, 70, 229, 0.4);
+                background-color: #f8fafc;
+                box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            }
+
+            button {
+                background-color: #ffffff;
+                border: 1px solid rgba(15, 23, 42, 0.12);
+                text-transform: uppercase;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                font-size: 0.8rem;
+            }
+            button:hover {
+                background-color: rgba(79, 70, 229, 0.05);
+                border-color: var(--accent-indigo);
+            }
+            button:active {
+                transform: scale(0.97);
+            }
+
+            #btn-play {
+                background-color: rgba(79, 70, 229, 0.08);
+                border-color: rgba(79, 70, 229, 0.18);
+                color: var(--accent-indigo);
+            }
+            #btn-play:hover {
+                background-color: var(--accent-indigo);
+                color: #ffffff;
+                border-color: var(--accent-indigo);
+            }
+
+            .btn-row { display: flex; gap: 10px; }
+            .btn-row button { flex: 1; }
+
+            #log-container {
+                flex-grow: 1;
+                background-color: #ffffff;
+                border: 1px solid rgba(15, 23, 42, 0.08);
+                border-radius: 8px;
+                padding: 15px;
+                font-family: var(--font-mono);
+                font-size: 0.78rem;
+                line-height: 1.5;
+                overflow-y: auto;
+                color: #334155;
+                box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+            }
+
+            .log-entry { margin-bottom: 5px; }
+            .log-highlight { color: var(--accent-indigo); font-weight: 600; }
+            .log-success { color: var(--node-path); font-weight: bold; }
 
             #canvas-container {
-                width: 100%;
-                height: 48vh;
-                flex-grow: unset;
+                flex-grow: 1;
+                position: relative;
+                background-color: var(--bg-color);
             }
+
+            canvas { display: block; width: 100%; height: 100%; }
 
             #legend {
-                top: 12px;
-                right: 12px;
+                position: absolute;
+                top: 24px;
+                right: 24px;
+                background-color: rgba(255, 255, 255, 0.85);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 1px solid var(--panel-border);
+                padding: 16px;
+                font-size: 0.75rem;
+                border-radius: 10px;
+                box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
             }
-        }
-    </style>
-</head>
-<body>
 
-    <div id="sidebar">
-        <div class="header-panel">
-            <h1>DLS Visualizer</h1>
-            <p class="subtitle">Explores paths down to a strict edge depth limit boundary. Prevents infinite looping configurations.</p>
-        </div>
+            .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+            .color-box { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(15, 23, 42, 0.08); }
 
-        <div class="settings-panel">
-            <div style="display: flex; gap: 10px;">
-                <div class="setting-row" style="flex: 1;">
-                    <label>Start City</label>
-                    <select id="start-city"></select>
-                </div>
-                <div class="setting-row" style="flex: 1;">
-                    <label>Destination</label>
-                    <select id="end-city"></select>
-                </div>
-            </div>
-            <div class="setting-row">
-                <label>Strict Depth Edge Limit</label>
-                <select id="depth-limit">
-                    <option value="1">1 Edge Max Depth</option>
-                    <option value="2">2 Edges Max Depth</option>
-                    <option value="3" selected>3 Edges Max Depth</option>
-                    <option value="4">4 Edges Max Depth</option>
-                    <option value="5">5 Edges Max Depth</option>
+            @media (max-width: 850px) {
+                body {
+                    flex-direction: column;
+                    overflow-y: auto;
+                    height: auto;
+                }
+
+                #sidebar {
+                    width: 100%;
+                    height: auto;
+                    max-height: none;
+                    border-right: none;
+                    border-top: 1px solid var(--panel-border);
+                    padding: 16px;
+                    gap: 12px;
+                    overflow-y: visible;
+                }
+
+                #canvas-container {
+                    width: 100%;
+                    height: 50vh;
+                    min-height: 350px;
+                    flex-grow: unset;
+                    flex-shrink: 0;
+                }
+
+                #legend {
+                    top: 12px;
+                    right: 12px;
+                    padding: 10px;
+                    font-size: 0.7rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+
+        <div id="sidebar">
+            <h1>Route Finder</h1>
+
+            <div class="control-group">
+                <label>Algorithm</label>
+                <select id="algo-select">
+                    <option value="bfs">Breadth-First Search (BFS)</option>
+                    <option value="dfs">Depth-First Search (DFS)</option>
+                    <option value="ucs">Uniform-Cost Search</option>
+                    <option value="gbfs">Greedy Best-First Search</option>
+                    <option value="astar" selected>A* Search</option>
+                    <option value="wastar">Weighted A* (W=2)</option>
+                    <option value="beam">Beam Search (k=2)</option>
                 </select>
             </div>
-        </div>
 
-        <div class="controls">
-            <button id="btn-step">Step</button>
-            <button id="btn-play">Play</button>
-            <button id="btn-reset">Reset</button>
-        </div>
-
-        <div id="log-container"></div>
-    </div>
-
-    <div id="canvas-container">
-        <canvas id="mapCanvas"></canvas>
-        <div id="legend">
-            <div class="legend-item"><div class="color-box" style="background: #cbd5e1"></div> Unvisited</div>
-            <div class="legend-item"><div class="color-box" style="background: var(--accent-blue)"></div> Processing Node</div>
-            <div class="legend-item"><div class="color-box" style="background: var(--accent-red)"></div> Max Depth Limit Hit</div>
-            <div class="legend-item"><div class="color-box" style="background: var(--accent-green)"></div> Final Path Out</div>
-        </div>
-    </div>
-
-<script>
-    // Topology Framework Mapping Coordinates
-    const graph = {
-        "Wa": { "Bolgatanga": 280, "Tamale": 290, "Sunyani": 320 },
-        "Bolgatanga": { "Wa": 280, "Tamale": 160 },
-        "Tamale": { "Wa": 290, "Bolgatanga": 160, "Yendi": 110, "Kintampo": 220, "Techiman": 360 },
-        "Yendi": { "Tamale": 110, "Ho": 500 },
-        "Kintampo": { "Tamale": 220, "Techiman": 110, "Kumasi": 280 },
-        "Techiman": { "Tamale": 360, "Kintampo": 110, "Sunyani": 120, "Kumasi": 130 },
-        "Sunyani": { "Wa": 320, "Techiman": 120, "Kumasi": 120 },
-        "Kumasi": { "Kintampo": 280, "Techiman": 130, "Sunyani": 120, "Koforidua": 190, "Accra": 250, "Cape Coast": 220 },
-        "Koforidua": { "Kumasi": 190, "Accra": 90 },
-        "Ho": { "Yendi": 500, "Accra": 160 },
-        "Accra": { "Kumasi": 250, "Koforidua": 90, "Ho": 160, "Cape Coast": 150, "Korle Bu": 15 },
-        "Cape Coast": { "Kumasi": 220, "Accra": 150 },
-        "Korle Bu": { "Accra": 15 }
-    };
-
-    const coordinates = {
-        "Wa": { x: 200, y: 150 }, "Bolgatanga": { x: 450, y: 80 }, "Tamale": { x: 450, y: 250 },
-        "Yendi": { x: 650, y: 250 }, "Kintampo": { x: 450, y: 400 }, "Techiman": { x: 350, y: 480 },
-        "Sunyani": { x: 200, y: 520 }, "Kumasi": { x: 400, y: 650 }, "Koforidua": { x: 600, y: 700 },
-        "Ho": { x: 750, y: 600 }, "Accra": { x: 650, y: 800 }, "Cape Coast": { x: 350, y: 850 },
-        "Korle Bu": { x: 630, y: 830 }
-    };
-
-    function getProjectedCoords(cityName, cvWidth, cvHeight) {
-        const raw = coordinates[cityName];
-        const paddingX = cvWidth < 850 ? 30 : 60;
-        const paddingY = cvHeight < 850 ? 30 : 60;
-
-        const minX = 200, maxX = 750;
-        const minY = 80, maxY = 850;
-
-        const pctX = (raw.x - minX) / (maxX - minX);
-        const pctY = (raw.y - minY) / (maxY - minY);
-
-        return {
-            x: paddingX + pctX * (cvWidth - paddingX * 2),
-            y: paddingY + pctY * (cvHeight - paddingY * 2)
-        };
-    }
-
-    const canvas = document.getElementById('mapCanvas');
-    const ctx = canvas.getContext('2d');
-    const logContainer = document.getElementById('log-container');
-    const startSelect = document.getElementById('start-city');
-    const endSelect = document.getElementById('end-city');
-    const limitSelect = document.getElementById('depth-limit');
-
-    let isPlaying = false, playInterval = null, dlsGenerator = null;
-
-    // Internal Cache Pointers
-    let activePath = [];
-    let currentCutoffNode = null;
-    let finalPath = [];
-
-    function initSelects() {
-        startSelect.innerHTML = ''; endSelect.innerHTML = '';
-        Object.keys(graph).forEach(city => {
-            startSelect.innerHTML += `<option value="${city}" ${city === 'Tamale' ? 'selected' : ''}>${city}</option>`;
-            endSelect.innerHTML += `<option value="${city}" ${city === 'Korle Bu' ? 'selected' : ''}>${city}</option>`;
-        });
-    }
-
-    function resizeCanvas() {
-        canvas.width = canvas.parentElement.clientWidth;
-        canvas.height = canvas.parentElement.clientHeight;
-        drawGraph();
-    }
-    window.addEventListener('resize', resizeCanvas);
-
-    function log(htmlContent) {
-        const div = document.createElement('div'); div.className = 'log-entry'; div.innerHTML = htmlContent;
-        logContainer.appendChild(div); logContainer.scrollTop = logContainer.scrollHeight;
-    }
-
-    // --- Depth Limited Search Generator Algorithm Loop ---
-    function* runDLS(start, goal, limit) {
-        let stack = [{ node: start, path: [start], depth: 0, cost: 0 }];
-        let cutoffOccurred = false;
-        let stepCount = 1;
-
-        while (stack.length > 0) {
-            let current = stack.pop();
-            activePath = current.path;
-            currentCutoffNode = null;
-
-            if (current.node === goal) {
-                finalPath = current.path;
-                yield { type: 'success', path: finalPath, cost: current.cost, step: stepCount++ };
-                return;
-            }
-
-            // Depth boundary condition verification execution trigger
-            if (current.depth === limit) {
-                cutoffOccurred = true;
-                currentCutoffNode = current.node;
-                yield { type: 'cutoff', node: current.node, depth: current.depth, step: stepCount++ };
-                continue;
-            }
-
-            let successors = Object.keys(graph[current.node]);
-            let childrenAdded = [];
-
-            for (let i = successors.length - 1; i >= 0; i--) {
-                let neighbor = successors[i];
-                if (!current.path.includes(neighbor)) {
-                    stack.push({
-                        node: neighbor,
-                        path: [...current.path, neighbor],
-                        depth: current.depth + 1,
-                        cost: current.cost + graph[current.node][neighbor]
-                    });
-                    childrenAdded.push(neighbor);
-                }
-            }
-
-            yield { type: 'expand', node: current.node, depth: current.depth, stack: stack.map(s => s.node), step: stepCount++ };
-        }
-
-        if (cutoffOccurred) {
-            yield { type: 'cutoff_fail' };
-        } else {
-            yield { type: 'absolute_fail' };
-        }
-    }
-
-    function step() {
-        const limit = parseInt(limitSelect.value);
-        if (!dlsGenerator) {
-            const start = startSelect.value, end = endSelect.value;
-            activePath = []; finalPath = []; currentCutoffNode = null;
-            logContainer.innerHTML = '';
-            log(`<span style="color:#356ea8; font-weight:bold;">INITIALIZING DLS:</span> Limit Ceiling Bound = ${limit} edges.`);
-            dlsGenerator = runDLS(start, end, limit);
-        }
-
-        let result = dlsGenerator.next();
-        if (result.done) { isPlaying = false; document.getElementById('btn-play').innerText = 'Play'; clearInterval(playInterval); return; }
-
-        let state = result.value;
-        if (state.type === 'expand') {
-            log(`<span>Step ${state.step}:</span> Processing <span class="data-highlight">${state.node}</span> at depth level ${state.depth}`);
-        }
-        else if (state.type === 'cutoff') {
-            log(`<span class="log-cutoff">⊘ LIMIT REACHED:</span> Node <span class="data-highlight">${state.node}</span> hits depth ${state.depth}. Branch Pruned.`);
-        }
-        else if (state.type === 'success') {
-            activePath = [];
-            finalPath = state.path;
-            log(`
-                <div class="log-success">
-                    <b>GOAL ENCOUNTERED WITHIN SPECIFIED BOUNDS!</b><br>
-                    Path: ${state.path.join(' → ')}<br>
-                    Cost: ${state.cost} km
+            <div class="control-row-grid">
+                <div class="control-group">
+                    <label>Start City</label>
+                    <select id="start-select"></select>
                 </div>
-            `);
+
+                <div class="control-group">
+                    <label>Destination</label>
+                    <select id="end-select">
+                        <option value="Korle Bu">Korle Bu</option>
+                        <option value="Accra">Accra</option>
+                        <option value="Tamale">Tamale</option>
+                        <option value="Kumasi">Kumasi</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button id="btn-step">Step</button>
+                <button id="btn-play">Play</button>
+                <button id="btn-reset">Reset</button>
+            </div>
+
+            <div class="control-group" style="flex-grow: 1;">
+                <label>Execution Log</label>
+                <div id="log-container"></div>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="mapCanvas"></canvas>
+            <div id="legend">
+                <div class="legend-item"><div class="color-box" style="background: var(--node-unvisited)"></div> Unvisited</div>
+                <div class="legend-item"><div class="color-box" style="background: var(--node-frontier)"></div> Frontier</div>
+                <div class="legend-item"><div class="color-box" style="background: var(--node-explored)"></div> Explored</div>
+                <div class="legend-item"><div class="color-box" style="background: var(--node-path)"></div> Final Path</div>
+            </div>
+        </div>
+
+    <script>
+        // System Architecture: Flat primitive objects to avoid GC overhead during rapid traversal.
+
+        const graph = {
+            "Wa": { "Bolgatanga": 280, "Tamale": 290, "Sunyani": 320 },
+            "Bolgatanga": { "Wa": 280, "Tamale": 160 },
+            "Tamale": { "Wa": 290, "Bolgatanga": 160, "Yendi": 110, "Kintampo": 220, "Techiman": 360 },
+            "Yendi": { "Tamale": 110, "Ho": 500 },
+            "Kintampo": { "Tamale": 220, "Techiman": 110, "Kumasi": 280 },
+            "Techiman": { "Tamale": 360, "Kintampo": 110, "Sunyani": 120, "Kumasi": 130 },
+            "Sunyani": { "Wa": 320, "Techiman": 120, "Kumasi": 120 },
+            "Kumasi": { "Kintampo": 280, "Techiman": 130, "Sunyani": 120, "Koforidua": 190, "Accra": 250, "Cape Coast": 220 },
+            "Koforidua": { "Kumasi": 190, "Accra": 90 },
+            "Ho": { "Yendi": 500, "Accra": 160 },
+            "Accra": { "Kumasi": 250, "Koforidua": 90, "Ho": 160, "Cape Coast": 150, "Korle Bu": 15 },
+            "Cape Coast": { "Kumasi": 220, "Accra": 150 },
+            "Korle Bu": { "Accra": 15 }
+        };
+
+        const tableHeuristics = {
+            "Tamale": 600, "Kintampo": 400, "Techiman": 320, "Sunyani": 280,
+            "Kumasi": 220, "Koforidua": 80, "Accra": 10, "Korle Bu": 0,
+            "Cape Coast": 180, "Takoradi": 220, "Ho": 160, "Wa": 450,
+            "Bolgatanga": 650, "Yendi": 500
+        };
+
+        const coordinates = {
+            "Wa": { x: 200, y: 150 },
+            "Bolgatanga": { x: 450, y: 80 },
+            "Tamale": { x: 450, y: 250 },
+            "Yendi": { x: 650, y: 250 },
+            "Kintampo": { x: 450, y: 400 },
+            "Techiman": { x: 350, y: 480 },
+            "Sunyani": { x: 200, y: 520 },
+            "Kumasi": { x: 400, y: 650 },
+            "Koforidua": { x: 600, y: 700 },
+            "Ho": { x: 750, y: 600 },
+            "Accra": { x: 650, y: 800 },
+            "Cape Coast": { x: 350, y: 850 },
+            "Korle Bu": { x: 630, y: 830 }
+        };
+
+        function getProjectedCoords(cityName, cvWidth, cvHeight) {
+            const raw = coordinates[cityName];
+            const paddingX = cvWidth < 850 ? 30 : 60;
+            const paddingY = cvHeight < 850 ? 30 : 60;
+
+            const minX = 200, maxX = 750;
+            const minY = 80, maxY = 850;
+
+            const pctX = (raw.x - minX) / (maxX - minX);
+            const pctY = (raw.y - minY) / (maxY - minY);
+
+            return {
+                x: paddingX + pctX * (cvWidth - paddingX * 2),
+                y: paddingY + pctY * (cvHeight - paddingY * 2)
+            };
         }
-        else if (state.type === 'cutoff_fail') {
-            log(`<span class="log-cutoff">SEARCH TERMINATED (CUTOFF):</span> Frontier completely exhausted. Goal was not discovered within depth limit threshold, but may exist deeper down lines.`);
+
+        // UI Elements
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const logContainer = document.getElementById('log-container');
+        const btnStep = document.getElementById('btn-step');
+        const btnPlay = document.getElementById('btn-play');
+        const btnReset = document.getElementById('btn-reset');
+
+        let searchGenerator = null;
+        let isPlaying = false;
+        let playInterval = null;
+        let currentState = { explored: new Set(), frontier: [], path: [] };
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            drawGraph();
         }
-        else if (state.type === 'absolute_fail') {
-            log(`<span class="log-fail">SEARCH TERMINATED (ABSOLUTE FAILURE):</span> The entire searchable graph component was structurally navigated. No valid route link path exists to the destination.`);
-        }
+        window.addEventListener('resize', resizeCanvas);
 
-        drawGraph();
-    }
-
-    function togglePlay() {
-        if (isPlaying) { isPlaying = false; document.getElementById('btn-play').innerText = 'Play'; clearInterval(playInterval); }
-        else { isPlaying = true; document.getElementById('btn-play').innerText = 'Pause'; playInterval = setInterval(step, 600); }
-    }
-
-    function resetVisualizer() {
-        if(playInterval) clearInterval(playInterval);
-        isPlaying = false; document.getElementById('btn-play').innerText = 'Play';
-        dlsGenerator = null; activePath = []; finalPath = []; currentCutoffNode = null;
-        logContainer.innerHTML = ''; drawGraph();
-    }
-
-    function drawGraph() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let w = canvas.width, h = canvas.height;
-
-        let activeEdges = new Set();
-        for (let i = 0; i < activePath.length - 1; i++) {
-            activeEdges.add([activePath[i], activePath[i+1]].sort().join('-'));
-        }
-
-        let finalEdges = new Set();
-        for (let i = 0; i < finalPath.length - 1; i++) {
-            finalEdges.add([finalPath[i], finalPath[i+1]].sort().join('-'));
-        }
-
-        // Draw Links
-        let drawnEdges = new Set();
-        for (let city in graph) {
-            for (let neighbor in graph[city]) {
-                let id = [city, neighbor].sort().join('-');
-                if (!drawnEdges.has(id)) {
-                    drawnEdges.add(id);
-                    let p1 = getProjectedCoords(city, w, h);
-                    let p2 = getProjectedCoords(neighbor, w, h);
-
-                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-                    if (finalEdges.has(id)) { 
-                        ctx.strokeStyle = '#10b981'; // Emerald Green
-                        ctx.lineWidth = w < 500 ? 3 : 5; 
-                    }
-                    else if (activeEdges.has(id)) { 
-                        ctx.strokeStyle = '#74ade8'; // Custom Soft Blue
-                        ctx.lineWidth = w < 500 ? 2.5 : 3.5; 
-                    }
-                    else { 
-                        ctx.strokeStyle = '#e2e8f0'; // Slate-200
-                        ctx.lineWidth = 2.5; 
-                    }
-                    ctx.stroke();
-
-                    // Weights
-                    ctx.fillStyle = '#64748b'; // Slate-500
-                    ctx.font = w < 500 ? '9px monospace' : '10px monospace';
-                    ctx.fillText(graph[city][neighbor], (p1.x + p2.x)/2 + 5, (p1.y + p2.y)/2 - 5);
+        function initSelects() {
+            const startSelect = document.getElementById('start-select');
+            const endSelect = document.getElementById('end-select');
+            startSelect.innerHTML = '';
+            Object.keys(graph).forEach(city => {
+                startSelect.innerHTML += `<option value="${city}" ${city === 'Tamale' ? 'selected' : ''}>${city}</option>`;
+                if(!Array.from(endSelect.options).find(opt => opt.value === city)) {
+                    endSelect.innerHTML += `<option value="${city}">${city}</option>`;
                 }
+            });
+        }
+
+        // Mathematical Distance for generic heuristics
+        function getHeuristic(node, goal) {
+            if (goal === "Korle Bu" && tableHeuristics[node] !== undefined) {
+                return tableHeuristics[node]; // Use strict table values if goal is Korle Bu
             }
+            // Fallback: Euclidean Distance scaled
+            const n1 = coordinates[node];
+            const n2 = coordinates[goal];
+            return Math.sqrt(Math.pow(n1.x - n2.x, 2) + Math.pow(n1.y - n2.y, 2)) * 1.5;
         }
 
-        // Draw Circular Nodes
-        let nodesInActivePath = new Set(activePath);
-        for (let city in coordinates) {
-            let p = getProjectedCoords(city, w, h);
-            let radius = w < 500 ? 6 : 8;
-            ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
+        function log(message, type = 'normal') {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type === 'highlight' ? 'log-highlight' : type === 'success' ? 'log-success' : ''}`;
 
-            if (finalPath.includes(city)) {
-                ctx.fillStyle = '#10b981'; // Final Route (Emerald)
-            } else if (city === currentCutoffNode) {
-                ctx.fillStyle = '#ef4444'; // Limit reached (Crimson)
-                ctx.shadowBlur = 15; ctx.shadowColor = '#ef4444';
-            } else if (nodesInActivePath.has(city)) {
-                ctx.fillStyle = '#74ade8'; // Processing Node (Custom Soft Blue)
-                if (city === activePath[activePath.length-1]) {
-                    ctx.shadowBlur = 10; ctx.shadowColor = '#74ade8';
+            if (type === 'success') {
+                div.style.marginTop = "15px";
+                div.style.border = "1px solid var(--node-path)";
+                div.style.padding = "12px";
+                div.style.borderRadius = "8px";
+                div.style.backgroundColor = "rgba(255, 51, 102, 0.08)";
+            }
+
+            div.innerText = message;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Core Universal Search Engine Iterator (Upgraded for verbose logging)
+            function* runSearch(start, goal, algo) {
+                let frontier = [{ node: start, path: [start], g: 0, h: getHeuristic(start, goal) }];
+                let reached = new Map();
+                reached.set(start, 0);
+                let stepCount = 1;
+
+                while (frontier.length > 0) {
+                    let current;
+
+                    // Queue extraction logic defines the algorithm
+                    if (algo === 'dfs') current = frontier.pop();
+                    else current = frontier.shift();
+
+                    currentState.explored.add(current.node);
+                    currentState.frontier = frontier.map(f => f.node);
+
+                    if (current.node === goal) {
+                        currentState.path = current.path;
+                        yield { type: 'success', path: current.path, cost: current.g, step: stepCount };
+                        return;
+                    }
+
+                    let successors = Object.keys(graph[current.node]);
+                    let childrenLog = [];
+                    let children = [];
+
+                    // Generate valid children and capture their mathematical evaluations
+                    for (let neighbor of successors) {
+                        let cost = graph[current.node][neighbor];
+                        let newG = current.g + cost;
+                        let h = getHeuristic(neighbor, goal);
+                        let f = newG + h;
+
+                        // Format the evaluation string based on the active algorithm
+                        let evalString = "";
+                        if (algo === 'ucs') evalString = `(g=${newG})`;
+                        else if (algo === 'gbfs') evalString = `(h=${Math.round(h)})`;
+                        else if (algo === 'astar') evalString = `(g=${newG}, h=${Math.round(h)} ⇒ f=${Math.round(f)})`;
+                        else if (algo === 'wastar') evalString = `(f=${Math.round(newG + 2*h)})`;
+                        else if (algo === 'beam') evalString = `(h=${Math.round(h)})`;
+
+                        childrenLog.push(`${neighbor} ${evalString}`);
+
+                        if (!reached.has(neighbor) || newG < reached.get(neighbor)) {
+                            reached.set(neighbor, newG);
+                            children.push({
+                                node: neighbor,
+                                path: [...current.path, neighbor],
+                                g: newG,
+                                h: h
+                            });
+                        }
+                    }
+
+                    // Injection and Sorting
+                    if (algo === 'bfs' || algo === 'dfs') {
+                        frontier.push(...children);
+                    } else {
+                        frontier.push(...children);
+                        frontier.sort((a, b) => {
+                            if (algo === 'ucs') return a.g - b.g;
+                            if (algo === 'gbfs') return a.h - b.h;
+                            if (algo === 'astar') return (a.g + a.h) - (b.g + b.h);
+                            if (algo === 'wastar') return (a.g + 2 * a.h) - (b.g + 2 * b.h);
+                            return 0;
+                        });
+
+                        if (algo === 'beam') {
+                            frontier = frontier.slice(0, 2); // k=2 strict limit
+                        }
+                    }
+
+                    // Format frontier log to show the scores it is sorted by
+                    let frontierLog = frontier.map(f => {
+                        if (algo === 'ucs') return `${f.node}(${f.g})`;
+                        if (algo === 'gbfs' || algo === 'beam') return `${f.node}(${Math.round(f.h)})`;
+                        if (algo === 'astar') return `${f.node}(${Math.round(f.g + f.h)})`;
+                        if (algo === 'wastar') return `${f.node}(${Math.round(f.g + 2*f.h)})`;
+                        return f.node;
+                    });
+
+                    yield {
+                        type: 'expand',
+                        step: stepCount++,
+                        node: current.node,
+                        children: childrenLog,
+                        frontier: frontierLog
+                    };
                 }
+                yield { type: 'fail' };
+            }
+
+
+                function step() {
+                    if (!searchGenerator) {
+                        const start = document.getElementById('start-select').value;
+                        const end = document.getElementById('end-select').value;
+                        const algo = document.getElementById('algo-select').value;
+
+                        logContainer.innerHTML = '';
+                        log(`Initializing ${algo.toUpperCase()} from ${start} to ${end}...`, 'highlight');
+                        currentState = { explored: new Set(), frontier: [start], path: [] };
+                        searchGenerator = runSearch(start, end, algo);
+                    }
+
+                    const result = searchGenerator.next();
+
+                    if (result.done) {
+                        stopPlay();
+                        return;
+                    }
+
+                    const state = result.value;
+
+                    if (state.type === 'expand') {
+                        // Build the rich step-by-step UI block
+                        const stepDiv = document.createElement('div');
+                        stepDiv.style.marginBottom = "15px";
+                        stepDiv.style.borderBottom = "1px solid rgba(15, 23, 42, 0.08)";
+                        stepDiv.style.paddingBottom = "15px";
+
+                        stepDiv.innerHTML = `
+                            <div style="color: var(--accent-gold); font-weight: 600; margin-bottom: 8px;">Step ${state.step}: Expand ${state.node}</div>
+                            <div style="margin-left: 10px; margin-bottom: 6px;">
+                                <span style="color: var(--text-muted);">Pop:</span> <span style="color: #0f172a;">${state.node}</span>
+                            </div>
+                            <div style="margin-left: 10px; margin-bottom: 6px;">
+                                <span style="color: var(--text-muted);">Evaluate Neighbors:</span>
+                                <ul style="margin-top: 4px; margin-bottom: 4px; padding-left: 20px; color: #334155; list-style-type: square;">
+                                    ${state.children.length > 0 ? state.children.map(c => `<li>${c}</li>`).join('') : '<li>None (Dead end or all visited)</li>'}
+                                </ul>
+                            </div>
+                            <div style="margin-left: 10px; line-height: 1.4;">
+                                <span style="color: var(--text-muted);">Update Frontier:</span><br>
+                                <span style="color: var(--node-frontier); word-wrap: break-word;">[${state.frontier.length > 0 ? state.frontier.join(', ') : 'Empty'}]</span>
+                            </div>
+                        `;
+                        logContainer.appendChild(stepDiv);
+                        logContainer.scrollTop = logContainer.scrollHeight;
+
+                    } else if (state.type === 'success') {
+                        log(`Goal Reached at Step ${state.step}!`, 'success');
+                        log(`Total Cost: ${state.cost} km`, 'success');
+                        log(`Path: ${state.path.join(' → ')}`, 'success');
+                    } else if (state.type === 'fail') {
+                        log(`Frontier is empty. Failed to find path.`, 'normal');
+                    }
+
+                    drawGraph();
+                }
+
+        function togglePlay() {
+            if (isPlaying) {
+                stopPlay();
             } else {
-                ctx.fillStyle = '#cbd5e1'; // Unvisited (Slate-300)
+                isPlaying = true;
+                btnPlay.innerText = 'Pause';
+                playInterval = setInterval(step, 500);
+            }
+        }
+
+        function stopPlay() {
+            isPlaying = false;
+            btnPlay.innerText = 'Play';
+            clearInterval(playInterval);
+        }
+
+        function reset() {
+            stopPlay();
+            searchGenerator = null;
+            currentState = { explored: new Set(), frontier: [], path: [] };
+            logContainer.innerHTML = '';
+            drawGraph();
+        }
+
+        function drawGraph() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let w = canvas.width, h = canvas.height;
+
+            // Draw Edges
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#cbd5e1';
+
+            let drawnEdges = new Set();
+            for (let city in graph) {
+                for (let neighbor in graph[city]) {
+                    let edgeId = [city, neighbor].sort().join('-');
+                    if (!drawnEdges.has(edgeId)) {
+                        drawnEdges.add(edgeId);
+                        let p1 = getProjectedCoords(city, w, h);
+                        let p2 = getProjectedCoords(neighbor, w, h);
+
+                        // Check if edge is part of final path
+                        let isPath = false;
+                        for(let i=0; i<currentState.path.length-1; i++) {
+                            if((currentState.path[i] === city && currentState.path[i+1] === neighbor) ||
+                            (currentState.path[i] === neighbor && currentState.path[i+1] === city)) {
+                                isPath = true; break;
+                            }
+                        }
+
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = isPath ? '#e11d48' : '#e2e8f0';
+                        ctx.lineWidth = isPath ? (w < 500 ? 3 : 5) : 2.5;
+                        ctx.stroke();
+
+                        // Draw Weights
+                        ctx.fillStyle = '#64748b';
+                        ctx.font = w < 500 ? '9px monospace' : '10px monospace';
+                        ctx.fillText(graph[city][neighbor], (p1.x + p2.x)/2 + 5, (p1.y + p2.y)/2 - 5);
+                    }
+                }
             }
 
-            ctx.fill(); ctx.shadowBlur = 0;
+            // Draw Nodes
+            for (let city in coordinates) {
+                let p = getProjectedCoords(city, w, h);
+                let radius = w < 500 ? 6 : 8;
 
-            // White border ring around node
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
 
-            ctx.fillStyle = '#0f172a'; // Slate-900
-            ctx.font = w < 500 ? '10px sans-serif' : '12px "Outfit", sans-serif';
-            ctx.fillText(city, p.x + (w < 500 ? 9 : 12), p.y + 4);
+                if (currentState.path.includes(city)) {
+                    ctx.fillStyle = '#e11d48';
+                } else if (currentState.explored.has(city)) {
+                    ctx.fillStyle = '#d97706';
+                } else if (currentState.frontier.includes(city)) {
+                    ctx.fillStyle = '#3b82f6';
+                } else {
+                    ctx.fillStyle = '#cbd5e1';
+                }
+
+                ctx.fill();
+
+                // Apple Maps style node border
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.font = w < 500 ? '10px sans-serif' : '12px "Outfit", sans-serif';
+                ctx.fillText(city, p.x + (w < 500 ? 9 : 12), p.y + 4);
+            }
         }
-    }
 
-    document.getElementById('btn-step').addEventListener('click', step);
-    document.getElementById('btn-play').addEventListener('click', togglePlay);
-    document.getElementById('btn-reset').addEventListener('click', resetVisualizer);
-    startSelect.addEventListener('change', resetVisualizer);
-    endSelect.addEventListener('change', resetVisualizer);
-    limitSelect.addEventListener('change', resetVisualizer);
+        // Event Listeners
+        btnStep.addEventListener('click', step);
+        btnPlay.addEventListener('click', togglePlay);
+        btnReset.addEventListener('click', reset);
+        document.getElementById('algo-select').addEventListener('change', reset);
+        document.getElementById('start-select').addEventListener('change', reset);
+        document.getElementById('end-select').addEventListener('change', reset);
 
-    // Initial render
-    initSelects();
-    resizeCanvas();
-</script>
-</body>
-</html>
+        // Initialization
+        initSelects();
+        resizeCanvas();
+
+    </script>
+    </body>
+    </html>
